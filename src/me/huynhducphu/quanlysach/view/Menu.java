@@ -69,6 +69,10 @@ public class Menu extends JFrame implements ActionListener {
     private void readFile() {
         try {
             bookTableModel.setBookCollection((BookCollection)FileController.readFromFile(filePath));
+            bookTableModel.getBookCollection().getBooks()
+                    .stream()
+                    .forEach(x -> idCBox.addItem(x.getId()));
+            bookTable.clearSelection();
         } catch (EOFException eof) {
             System.out.println("Tệp dữ liệu rỗng. Không thông tin nào được đưa vào.");
         } catch (Exception exception) {
@@ -186,7 +190,6 @@ public class Menu extends JFrame implements ActionListener {
                 if (e.getValueIsAdjusting()) {
                     int selectedRow = bookTable.getSelectedRow();
                     if (selectedRow != -1) {
-                        idTxtField.setEditable(false);
 
                         updateTextFields(selectedRow);
                         idCBox.setSelectedIndex(selectedRow);
@@ -215,6 +218,7 @@ public class Menu extends JFrame implements ActionListener {
         pagesNumberTxtField.setText(null);
         priceTxtField.setText(null);
         isbnTxtField.setText(null);
+        idTxtField.setEditable(true);
     }
 
     private void handleTxtField() {
@@ -258,16 +262,18 @@ public class Menu extends JFrame implements ActionListener {
         pagesNumberTxtField.setText(String.valueOf(book.getPagesNumber()));
         priceTxtField.setText(String.valueOf(book.getPrice()));
         isbnTxtField.setText(book.getIsbn());
+        idTxtField.setEditable(false);
     }
 
     private void handleInsertBtn() {
         handleTxtField();
         int pagesNumber = pagesNumberTxtField.getText().trim().isEmpty() ? 0 : Integer.parseInt(pagesNumberTxtField.getText().trim());
         double price = priceTxtField.getText().trim().isEmpty() ? 0 : Double.parseDouble(priceTxtField.getText().trim());
+        String author = authorTxtField.getText().trim().isEmpty() ? "UNKNOW" : authorTxtField.getText().trim();
         Book book = new Book(
                 idTxtField.getText().trim(),
                 nameTxtField.getText().trim(),
-                authorTxtField.getText().trim(),
+                author,
                 Integer.parseInt(yearPublishedTxtField.getText().trim()),
                 publisherTxtField.getText().trim(),
                 pagesNumber,
@@ -322,6 +328,7 @@ public class Menu extends JFrame implements ActionListener {
                 x ->  {
                     if (books.get(x).getId().equalsIgnoreCase(id)) {
                         bookTable.setRowSelectionInterval(x, x);
+                        bookTable.scrollRectToVisible(bookTable.getCellRect(bookTable.getSelectedRow(), 0, true));
                         updateTextFields(x);
                     }
                 }
