@@ -2,22 +2,18 @@ package me.huynhducphu.quanlysach.view;
 
 import me.huynhducphu.quanlysach.controller.BookTableModel;
 import me.huynhducphu.quanlysach.controller.FileController;
-import me.huynhducphu.quanlysach.model.Book;
+import me.huynhducphu.quanlysach.controller.MenuController;
 import me.huynhducphu.quanlysach.model.BookCollection;
 
 import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.EOFException;
 import java.io.File;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.stream.IntStream;
 
 public class Menu extends JFrame implements ActionListener {
+    private final MenuController menuController;
     private final String filePath = "data/ThongTinSach.db";
     private BookTableModel bookTableModel;
     private JTable bookTable;
@@ -45,6 +41,7 @@ public class Menu extends JFrame implements ActionListener {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
+        menuController = new MenuController(this);
         add(setupNorthPanel(), BorderLayout.NORTH);
         add(setupCenterPanel(), BorderLayout.CENTER);
 
@@ -70,9 +67,7 @@ public class Menu extends JFrame implements ActionListener {
         try {
             bookTableModel.setBookCollection((BookCollection)FileController.readFromFile(filePath));
             bookTableModel.getBookCollection().getBooks()
-                    .stream()
                     .forEach(x -> idCBox.addItem(x.getId()));
-            bookTable.clearSelection();
         } catch (EOFException eof) {
             System.out.println("Tệp dữ liệu rỗng. Không thông tin nào được đưa vào.");
         } catch (Exception exception) {
@@ -184,22 +179,17 @@ public class Menu extends JFrame implements ActionListener {
     }
 
     private void setupTableEvent() {
-        bookTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
-            @Override
-            public void valueChanged(ListSelectionEvent e) {
-                if (e.getValueIsAdjusting()) {
-                    int selectedRow = bookTable.getSelectedRow();
-                    if (selectedRow != -1) {
+        bookTable.getSelectionModel().addListSelectionListener(e -> {
+            if (e.getValueIsAdjusting()) {
+                int selectedRow = bookTable.getSelectedRow();
+                if (selectedRow != -1) {
 
-                        updateTextFields(selectedRow);
-                        idCBox.setSelectedIndex(selectedRow);
-                    }
-                    else if (selectedRow == -1) idTxtField.setEditable(true);
+                    menuController.updateTextFields(selectedRow);
+                    idCBox.setSelectedIndex(selectedRow);
                 }
             }
         });
     }
-
 
     private void setItem(int x, int y, int weightx, int weighty, Component component, JPanel panel, GridBagConstraints gbc) {
         gbc.gridx = x;
@@ -209,151 +199,16 @@ public class Menu extends JFrame implements ActionListener {
         panel.add(component, gbc);
     }
 
-    private void handleResetBtn() {
-        idTxtField.setText(null);
-        nameTxtField.setText(null);
-        authorTxtField.setText(null);
-        yearPublishedTxtField.setText(null);
-        publisherTxtField.setText(null);
-        pagesNumberTxtField.setText(null);
-        priceTxtField.setText(null);
-        isbnTxtField.setText(null);
-        idTxtField.setEditable(true);
-    }
-
-    private void handleTxtField() {
-        if (!idTxtField.getText().trim().matches("[A-Z]\\d{3}"))
-            throw new IllegalArgumentException("Mã sách không hợp lệ");
-
-        if (!nameTxtField.getText().trim().matches("[A-Za-z0-9\\-() ]+"))
-            throw new IllegalArgumentException("Tựa sách không hợp lệ");
-
-        if (!authorTxtField.getText().trim().matches("[A-Za-z‘' ]+"))
-            throw new IllegalArgumentException("Tác giả không hợp lệ");
-
-        if (!yearPublishedTxtField.getText().trim().matches("\\d+"))
-            throw new IllegalArgumentException("Năm phát hành không hợp lệ");
-        if (Integer.parseInt(yearPublishedTxtField.getText().trim()) < 1900
-            || Integer.parseInt(yearPublishedTxtField.getText().trim()) > LocalDate.now().getYear())
-            throw new IllegalArgumentException("Năm phát hành phải từ 1900 đến " + LocalDate.now().getYear());
-
-
-        if (!pagesNumberTxtField.getText().trim().isEmpty()
-            && !pagesNumberTxtField.getText().trim().matches("\\d+")
-            && Integer.parseInt(pagesNumberTxtField.getText().trim()) < 0)
-            throw new IllegalArgumentException("Số trang không hợp lệ");
-
-        if (!priceTxtField.getText().trim().isEmpty()
-            && !priceTxtField.getText().trim().matches("\\d+")
-            && Double.parseDouble(priceTxtField.getText().trim()) < 0)
-            throw new IllegalArgumentException("Giá phải là một con số");
-
-        if (!isbnTxtField.getText().matches("\\d+-\\d+-\\d+-\\d+(-\\d+)?"))
-            throw new IllegalArgumentException("mã ISBN không hợp lệ");
-    }
-
-    private void updateTextFields(int selectedRow) {
-        Book book = bookTableModel.getBookByRow(selectedRow);
-        idTxtField.setText(book.getId());
-        nameTxtField.setText(book.getName());
-        authorTxtField.setText(book.getAuthor());
-        yearPublishedTxtField.setText(String.valueOf(book.getYearPublished()));
-        publisherTxtField.setText(book.getPublisher());
-        pagesNumberTxtField.setText(String.valueOf(book.getPagesNumber()));
-        priceTxtField.setText(String.valueOf(book.getPrice()));
-        isbnTxtField.setText(book.getIsbn());
-        idTxtField.setEditable(false);
-    }
-
-    private void handleInsertBtn() {
-        handleTxtField();
-        int pagesNumber = pagesNumberTxtField.getText().trim().isEmpty() ? 0 : Integer.parseInt(pagesNumberTxtField.getText().trim());
-        double price = priceTxtField.getText().trim().isEmpty() ? 0 : Double.parseDouble(priceTxtField.getText().trim());
-        String author = authorTxtField.getText().trim().isEmpty() ? "UNKNOW" : authorTxtField.getText().trim();
-        Book book = new Book(
-                idTxtField.getText().trim(),
-                nameTxtField.getText().trim(),
-                author,
-                Integer.parseInt(yearPublishedTxtField.getText().trim()),
-                publisherTxtField.getText().trim(),
-                pagesNumber,
-                price,
-                isbnTxtField.getText().trim()
-        );
-        bookTableModel.insertBook(book);
-        idCBox.addItem(book.getId());
-    }
-
-    private void handleDeleteBtn(int selectedRow) {
-        if (selectedRow == -1)
-            throw new IllegalArgumentException("Hàng xóa không hợp lệ");
-        int result = JOptionPane.showOptionDialog(
-                null,
-                "Bạn chắc chắn muốn xóa?",
-                "Hệ thống",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE,
-                null, null, null
-        );
-
-        if (result == JOptionPane.YES_OPTION) {
-            bookTableModel.deleteBook(selectedRow);
-            idCBox.removeItemAt(selectedRow);
-        }
-    }
-
-    private void handleUpdateBtn(int selectedRow) {
-        if (selectedRow == -1)
-            throw new IllegalArgumentException("Hàng cập nhât không hợp lệ");
-        handleTxtField();
-        int pagesNumber = pagesNumberTxtField.getText().trim().isEmpty() ? 0 : Integer.parseInt(pagesNumberTxtField.getText().trim());
-        double price = priceTxtField.getText().trim().isEmpty() ? 0 : Double.parseDouble(priceTxtField.getText().trim());
-        Book newBook = new Book(
-                idTxtField.getText().trim(),
-                nameTxtField.getText().trim(),
-                authorTxtField.getText().trim(),
-                Integer.parseInt(yearPublishedTxtField.getText().trim()),
-                publisherTxtField.getText().trim(),
-                pagesNumber,
-                price,
-                isbnTxtField.getText().trim()
-        );
-        bookTableModel.updateBook(newBook, selectedRow);
-    }
-
-    private void handleSearchCBox() {
-        String id = (String)idCBox.getSelectedItem();
-        ArrayList<Book> books = bookTableModel.getBookCollection().getBooks();
-        IntStream.range(0, books.size()).forEach(
-                x ->  {
-                    if (books.get(x).getId().equalsIgnoreCase(id)) {
-                        bookTable.setRowSelectionInterval(x, x);
-                        bookTable.scrollRectToVisible(bookTable.getCellRect(bookTable.getSelectedRow(), 0, true));
-                        updateTextFields(x);
-                    }
-                }
-        );
-    }
-
-    private void handleSaveBtn() {
-        try {
-            FileController.writeToFile(bookTableModel.getBookCollection(), filePath);
-            JOptionPane.showMessageDialog(this, "Dữ liệu đã được lưu thành công.", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
-        } catch (Exception exception) {
-            throw new IllegalArgumentException("Lưu thất bại!");
-        }
-    }
-
     @Override
     public void actionPerformed(ActionEvent e) {
         Object src = e.getSource();
         try {
-            if (src.equals(resetBtn)) handleResetBtn();
-            else if (src.equals(insertBtn)) handleInsertBtn();
-            else if (src.equals(deleteBtn)) handleDeleteBtn(bookTable.getSelectedRow());
-            else if (src.equals(updateBtn)) handleUpdateBtn(bookTable.getSelectedRow());
-            else if (src.equals(idCBox)) handleSearchCBox();
-            else if (src.equals(saveBtn)) handleSaveBtn();
+            if (src.equals(resetBtn)) menuController.handleResetBtn();
+            else if (src.equals(insertBtn)) menuController.handleInsertBtn();
+            else if (src.equals(deleteBtn)) menuController.handleDeleteBtn(bookTable.getSelectedRow());
+            else if (src.equals(updateBtn)) menuController.handleUpdateBtn(bookTable.getSelectedRow());
+            else if (src.equals(idCBox)) menuController.handleSearchCBox();
+            else if (src.equals(saveBtn)) menuController.handleSaveBtn();
         } catch (Exception exception) {
             JOptionPane.showOptionDialog(null, exception.getMessage(), "System",
                     JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, null, null);
@@ -363,5 +218,55 @@ public class Menu extends JFrame implements ActionListener {
 
     public static void main(String[] args) {
         new Menu();
+    }
+
+    public BookTableModel getBookTableModel() {
+        return bookTableModel;
+    }
+
+    public JTable getBookTable() {
+        return bookTable;
+    }
+
+    public JTextField getIdTxtField() {
+        return idTxtField;
+    }
+
+    public JTextField getNameTxtField() {
+        return nameTxtField;
+    }
+
+    public JTextField getAuthorTxtField() {
+        return authorTxtField;
+    }
+
+    public JTextField getYearPublishedTxtField() {
+        return yearPublishedTxtField;
+    }
+
+    public JTextField getPublisherTxtField() {
+        return publisherTxtField;
+    }
+
+    public JTextField getPagesNumberTxtField() {
+        return pagesNumberTxtField;
+    }
+
+    public JTextField getPriceTxtField() {
+        return priceTxtField;
+    }
+
+    public JTextField getIsbnTxtField() {
+        return isbnTxtField;
+    }
+
+
+    public JComboBox<String> getIdCBox() {
+        return idCBox;
+    }
+
+
+    public String getFilePath() {
+        return filePath;
     }
 }
